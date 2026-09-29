@@ -1,5 +1,7 @@
 # Steeve Translate
 
+![Steeve Translate conversation mode](public/translate/preview.gif)
+
 Google Translate, minus the nonsense. Type in either box to translate, with autoplay, turn-by-turn conversation mode, and custom speeds and voices.
 
 ## Features
