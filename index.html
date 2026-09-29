@@ -987,7 +987,7 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Firefox has no speech recognition, and Brave blocks Chrome's; explain rather than hide the buttons.
 // Edge uses Microsoft's speech service, which sometimes drops a request with a "network" error even
 // after working fine. Once voice input has worked, treat that as a hiccup rather than "unsupported".
-let voiceWorked = false, netErrors = 0;
+let voiceWorked = false;
 const noVoiceInput = () => toast("Voice input isn't available in this browser. Use Chrome or Safari, or your device's dictation.", 5000);
 const conv = { on: false, misses: 0 };
 const micBtns = [...document.querySelectorAll(".mic")];
@@ -1004,18 +1004,42 @@ function markTurn(side) {
   micBtns.forEach((b, s) => b.classList.toggle("listening", s === side));
 }
 
-function listen(side) {
-  if (rec) { rec.onend = null; rec.abort(); rec = null; }
+// Recognizer lifecycle. Safari's speech service (macOS "localspeechrecognition") crashes if a new
+// recognition session starts while the previous one is still shutting down, so sessions are strictly
+// serialized: abort the old one, wait for its "end", leave a short gap, then start the next.
+let recDone = Promise.resolve(), lastRecEnd = 0, listenSeq = 0, recFailures = 0;
+const REC_GAP = 400;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function closeRec() {
+  const r = rec;
+  rec = null;
+  if (!r) return;
+  r.onresult = r.onerror = null;      // keep onend: it resolves recDone
+  try { r.abort(); } catch {}
+}
+
+async function listen(side) {
+  const seq = ++listenSeq;
+  closeRec();
+  markTurn(side);
+  if (conv.on) convStatus(`Listening in ${langName(side)}…`, true);
+  await Promise.race([recDone, sleep(1500)]);
+  const wait = lastRecEnd + REC_GAP - Date.now();
+  if (wait > 0) await sleep(wait);
+  if (seq !== listenSeq) return;      // superseded by another listen() or a stop
+
   const t = els.text[side], other = els.text[1 - side];
   const r = new SR();
+  let done;
+  recDone = new Promise(res => done = res);
   rec = r;
   r.lang = bcp47(state.lang[side] === AUTO ? (state.detected[side] || AUTO) : state.lang[side]);
   r.interimResults = true;
   r.continuous = false;               // stop at the first pause: one utterance per turn
-  let heard = "", cleared = false;
+  let heard = "", cleared = false, failed = false;
   r.onresult = e => {
     heard = [...e.results].map(x => x[0].transcript).join("");
-    voiceWorked = true; netErrors = 0;
+    voiceWorked = true;
     if (!cleared) { other.value = ""; cleared = true; }   // new speech starts a fresh translation
     t.value = heard.slice(0, MAX);
     state.source = side;
@@ -1023,32 +1047,37 @@ function listen(side) {
     refresh();
   };
   r.onerror = e => {
-    const hiccup = "The speech service didn't respond. Tap the mic to try again.";
-    if (e.error === "not-allowed") { toast("Microphone permission denied"); stopConversation(); }
-    else if (e.error === "service-not-allowed" || (e.error === "network" && !voiceWorked)) { noVoiceInput(); stopConversation(); }
-    else if (e.error === "network") {
-      // In conversation mode the empty turn is retried automatically; give up after a few in a row.
-      if (!conv.on) toast(hiccup, 4000);
-      else if (++netErrors > 2) { toast(hiccup, 4000); stopConversation(); }
-    }
-    else if (e.error === "language-not-supported") { toast(`Voice input doesn't support ${langName(side)} in this browser`, 4000); stopConversation(); }
-    else if (e.error !== "no-speech" && e.error !== "aborted") toast("Mic error: " + e.error);
+    if (e.error === "no-speech" || e.error === "aborted") return;
+    if (e.error === "not-allowed") { toast("Microphone permission denied"); return stopConversation(); }
+    if (e.error === "service-not-allowed" || (e.error === "network" && !voiceWorked)) { noVoiceInput(); return stopConversation(); }
+    if (e.error === "language-not-supported") { toast(`Voice input doesn't support ${langName(side)} in this browser`, 4000); return stopConversation(); }
+    // Anything else (a dropped request, the speech service restarting…): conversation mode retries with
+    // back-off in finishTurn; a one-off mic tap just says so.
+    failed = true;
+    if (!conv.on) toast("The speech service didn't respond. Tap the mic to try again.", 4000);
   };
-  r.onend = () => { if (rec === r) { rec = null; finishTurn(side, heard.trim()); } };
-  markTurn(side);
-  if (conv.on) convStatus(`Listening in ${langName(side)}…`, true);
-  try { r.start(); } catch { rec = null; markTurn(null); toast("Mic unavailable"); }
+  r.onend = () => {
+    lastRecEnd = Date.now();
+    done();
+    if (rec === r) { rec = null; finishTurn(side, heard.trim(), failed, seq); }
+  };
+  try { r.start(); } catch { rec = null; done(); markTurn(null); toast("Mic unavailable"); }
 }
 
-async function finishTurn(side, heard) {
+async function finishTurn(side, heard, failed, seq) {
   markTurn(null);
+  // Only carry on if nothing else (a mic tap, Stop) has taken over since this turn started.
+  const next = (s, delay) => setTimeout(() => conv.on && listenSeq === seq && listen(s), delay);
   if (!heard) {
-    // Nothing said: keep waiting on the same side in conversation mode (give up after a while).
-    if (conv.on && ++conv.misses < 6) return setTimeout(() => conv.on && !rec && listen(side), 250);
-    if (conv.on) { stopConversation(); toast("Conversation paused: no speech heard"); }
-    return;
+    if (!conv.on) return;
+    if (failed) recFailures++;
+    conv.misses++;
+    if (recFailures >= 3) { stopConversation(); return toast("Speech recognition stopped responding. Try again in a moment.", 4000); }
+    if (conv.misses >= 6) { stopConversation(); return toast("Conversation paused: no speech heard"); }
+    return next(side, failed ? 500 * 2 ** recFailures : 300);   // back off when the service is failing
   }
   conv.misses = 0;
+  recFailures = 0;
   if (conv.on) convStatus("Translating…");
   clearTimeout(timer);
   state.source = side;
@@ -1058,15 +1087,16 @@ async function finishTurn(side, heard) {
     if (conv.on) convStatus(`Speaking ${langName(1 - side)}…`);
     await speak(els.text[1 - side].value, 1 - side);
   }
-  if (conv.on) setTimeout(() => conv.on && !rec && listen(1 - side), 300);
+  if (conv.on) next(1 - side, 300);
 }
 
 function stopMic() {
-  if (rec) { rec.onend = null; rec.abort(); rec = null; }
+  listenSeq++;                        // cancels any listen() still waiting to start
+  closeRec();
   markTurn(null);
 }
 function startConversation(side = 0) {
-  conv.on = true; conv.misses = 0;
+  conv.on = true; conv.misses = 0; recFailures = 0;
   conv.savedAutoRead = [...settings.autoRead];
   settings.autoRead = [true, true];
   renderAutoRead();
