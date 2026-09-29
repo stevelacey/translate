@@ -1,0 +1,13 @@
+{
+  "name": "translate",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-09-01",
+  // Steve's account (not Flow Canon / Open Up Music)
+  "account_id": "9216f7ab3325ae67b2bd826c5cf7e2b6",
+  // "steve.ly/translate" alone wouldn't match /translate?anything, which share links always have.
+  "routes": [{ "pattern": "steve.ly/translate*", "zone_name": "steve.ly" }],
+  "rules": [{ "type": "Text", "globs": ["**/*.html"], "fallthrough": true }],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "logs": { "enabled": true } }
+}
