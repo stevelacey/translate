@@ -137,13 +137,19 @@
   main { flex: 1; display: flex; flex-direction: column; padding: 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
   .langbar { display: flex; align-items: stretch; padding: 0 12px; position: relative; }
   .side { flex: 1; display: flex; align-items: stretch; min-width: 0; }
-  .side-tabs { flex: 0 1 auto; display: flex; align-items: stretch; min-width: 0; overflow: hidden; position: relative; }
+  .side-tabs { flex: 0 1 auto; display: flex; align-items: stretch; min-width: 0; overflow-x: auto; overflow-y: hidden; position: relative; scrollbar-width: none; }
+  .side-tabs::-webkit-scrollbar { display: none; }
+  /* Soft edges where tabs are scrolled out of view */
+  .side-tabs.fade-end { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+  .side-tabs.fade-start { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+  .side-tabs.fade-start.fade-end { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
   .tab {
     border: 0; background: none; color: var(--muted); cursor: pointer;
     font: 500 14px "Google Sans", Roboto, sans-serif; padding: 0 16px; height: 48px;
     white-space: nowrap; position: relative; flex-shrink: 0;
   }
   .tab:hover { background: var(--hover); }
+  .tab.active:hover { background: color-mix(in srgb, var(--blue) 8%, transparent); }
   .tab.active { color: var(--blue); }
   .ink { position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: var(--blue); border-radius: 2px 2px 0 0; pointer-events: none; }
   .ink.animate { transition: transform .25s cubic-bezier(.4, 0, .2, 1), width .25s cubic-bezier(.4, 0, .2, 1); }
@@ -551,6 +557,20 @@ function positionInk(side) {
   if (!ink) return;
   ink.style.width = active ? active.offsetWidth + "px" : "0";
   ink.style.transform = `translateX(${active ? active.offsetLeft : 0}px)`;
+  updateTabFades(side);
+}
+// Fade whichever edge has tabs scrolled out of view.
+function updateTabFades(side) {
+  const box = els.tabs[side];
+  box.classList.toggle("fade-start", box.scrollLeft > 1);
+  box.classList.toggle("fade-end", box.scrollLeft + box.clientWidth < box.scrollWidth - 1);
+}
+// Keep the active tab in view within its (scrollable) row.
+function revealActiveTab(side) {
+  const box = els.tabs[side], active = box.querySelector(".tab.active");
+  if (!active) return;
+  if (active.offsetLeft < box.scrollLeft) box.scrollLeft = active.offsetLeft;
+  else if (active.offsetLeft + active.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = active.offsetLeft + active.offsetWidth - box.clientWidth;
 }
 function renderTabs(side) {
   const box = els.tabs[side];
@@ -579,6 +599,8 @@ function renderTabs(side) {
     };
     box.insertBefore(b, ink);
   }
+  if (!box.dataset.scrollWatch) { box.dataset.scrollWatch = 1; box.addEventListener("scroll", () => updateTabFades(side), { passive: true }); }
+  revealActiveTab(side);
   positionInk(side);
 }
 
