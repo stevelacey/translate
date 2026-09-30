@@ -166,11 +166,8 @@
     -webkit-font-smoothing: antialiased; font-feature-settings: "liga"; user-select: none;
     font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; width: 1em; overflow: hidden;
   }
-  .mic.listening .ms, .mic.busy .ms { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
-  .mic.busy { color: var(--blue); animation: spin-bg 1s linear infinite; }
-  @keyframes spin-bg { 50% { background: var(--blue-bg); } }
+  .mic.listening .ms { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
   .voicewrap { position: relative; display: flex; }
-  .voicewrap[hidden] { display: none; }
   .voicebtn { position: relative; }
   .voicebtn .ms { transition: transform .2s; }
   .voicebtn.open .ms { transform: rotate(180deg); }
@@ -205,7 +202,6 @@
   .vmenu .vlist button { display: flex; align-items: center; gap: 12px; padding-right: 30px; }
   .vmenu .vlist button .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vmenu .vlist button .flag { font-size: 18px; line-height: 1; flex-shrink: 0; }
-  .vmenu .none { padding: 8px 16px; color: var(--muted); font-size: 13px; }
   .swap {
     width: 40px; height: 40px; margin: 0 12px; align-self: center; border: 0; border-radius: 50%; background: none;
     color: var(--muted); cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
