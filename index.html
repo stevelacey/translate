@@ -255,12 +255,13 @@
   .pane.output { background: var(--pane-idle); }
   textarea {
     flex: 1; width: 100%; resize: none; border: 0; outline: 0; background: transparent; color: var(--text);
-    font: 28px/40px Roboto, Arial, sans-serif; padding: 20px 56px 20px 24px;
+    font: 28px/40px Roboto, Arial, sans-serif; padding: 16px 64px 20px 24px;
   }
-  textarea.medium { font-size: 22px; line-height: 32px; }
-  textarea.small { font-size: 18px; line-height: 28px; }
+  textarea.medium { font-size: 22px; line-height: 32px; padding-top: 20px; }
+  textarea.small { font-size: 18px; line-height: 28px; padding-top: 22px; }
   textarea::placeholder { color: var(--muted); }
-  .clear { position: absolute; top: 12px; right: 8px; }
+  /* 16px from the top and right; each text size's padding-top centres its first line on it (36px down) */
+  .clear { position: absolute; top: 16px; right: 16px; }
   .iconbtn {
     width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--muted);
     cursor: pointer; display: grid; place-items: center;
@@ -347,7 +348,7 @@
     body.picker-open { overflow: hidden; }
     .convbtn .lbl { display: none; }
     .convbtn { padding: 0 8px; }
-    textarea { font-size: 22px; line-height: 32px; }
+    textarea { font-size: 22px; line-height: 32px; padding-top: 20px; }
   }
 </style>
 </head>
