@@ -186,6 +186,34 @@
   .vmenu .vrow .label { flex: 1; }
   .vmenu .vrow .value { color: var(--muted); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vmenu .vrow .chev { margin-left: -8px; }
+  .speedctl { padding: 20px 16px 16px; }
+  .speedval { text-align: center; font: 500 24px "Google Sans", Roboto, sans-serif; color: var(--text); margin-bottom: 18px; font-variant-numeric: tabular-nums; }
+  .speedctl .speedrow { display: flex; align-items: center; gap: 12px; }
+  .vmenu .vlist .speedctl button { padding: 0; display: flex; justify-content: center; align-items: center; gap: 0; }
+  .vmenu .speedctl .round {
+    width: 40px; height: 40px; flex-shrink: 0; border-radius: 50%; background: var(--hover); color: var(--text);
+    font: 400 22px/1 Roboto, sans-serif;
+  }
+  .vmenu .speedctl .round:disabled { opacity: .4; cursor: default; }
+  .speedctl input[type=range] {
+    flex: 1; min-width: 0; height: 24px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer;
+  }
+  .speedctl input[type=range]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--blue) var(--fill), var(--border) var(--fill));
+  }
+  .speedctl input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--border); }
+  .speedctl input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--blue); }
+  .speedctl input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px; border-radius: 50%; background: var(--blue); border: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .speedctl input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--blue); border: 0; }
+  .speedctl .chips { display: flex; gap: 6px; margin-top: 18px; }
+  .speedctl .chip { flex: 1; min-width: 0; }
+  .vmenu .speedctl .chips button {
+    width: 100%; height: 34px; border-radius: 17px; background: var(--hover); color: var(--text); font: 500 13px Roboto, sans-serif;
+  }
+  .vmenu .speedctl .chips button.on { background: var(--blue-bg); color: var(--blue); }
   .vmenu .vrow.back { flex-shrink: 0; border-bottom: 1px solid var(--border); padding: 12px 16px; font-weight: 500; }
   .vmenu .vrow.back .ms { color: var(--text); }
   .vmenu .head { padding: 6px 16px 8px; color: var(--muted); font-size: 12px; }
@@ -829,7 +857,6 @@ document.getElementById("settings-btn").onclick = e => {
 document.addEventListener("click", e => { if (!settingsPanel.hidden && !settingsPanel.contains(e.target)) settingsPanel.hidden = true; });
 document.addEventListener("keydown", e => { if (e.key === "Escape") settingsPanel.hidden = true; });
 
-const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 if (!settings.rates) settings.rates = {};
 const rateFor = code => settings.rates[code] ?? settings.defaultRate ?? 1;
 
@@ -884,6 +911,14 @@ function pickVoice(side) {
 const player = new Audio();
 const SILENT_MP3 = "data:audio/mpeg;base64,SUQzBAAAAAAAIlRTU0UAAAAOAAADTGF2ZjYzLjEuMTAxAAAAAAAAAAAAAAD/84TAAAAAAAAAAAAASW5mbwAAAA8AAAAFAAACoABtbW1tbW1tbW1tbW1tbW1tbW1tkpKSkpKSkpKSkpKSkpKSkpKSkpK2tra2tra2tra2tra2tra2tra2ttvb29vb29vb29vb29vb29vb29vb//////////////////////////8AAAAATGF2YzYzLjEuAAAAAAAAAAAAAAAAJARQAAAAAAAAAqDr4QetAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/80TEAAAAA0gAAAAATEFNRTQuMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FNC7/80TEUwAAA0gAAAAAMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FNC7/80TEpgAAA0gAAAAAMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80TErAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80TErAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=";
 let speakToken = 0;
+let playingLang = null;   // language whose Google-voice audio is playing, so speed changes apply live
+// Speed changed in a menu: update Google-voice audio that's playing now (system voices can't change
+// mid-sentence). Returns true if something was playing, so the menu can skip its sample.
+function applyLiveRate(code) {
+  if (player.paused || !playingLang || (code && code !== playingLang)) return false;
+  player.defaultPlaybackRate = player.playbackRate = rateFor(playingLang);
+  return true;
+}
 // iOS only plays audio started from a tap, so play silence on the first tap to unlock the player.
 let audioUnlocked = false;
 function unlockAudio() {
@@ -947,11 +982,16 @@ function playUrl(url, token, rate) {
     player.play().catch(e => token !== speakToken ? ok() : fail(e));
   });
 }
-async function speakGoogle(text, code, token, rate) {
+async function speakGoogle(text, code, token, rateLang) {
   const parts = ttsChunks(text);
-  for (let i = 0; i < parts.length && token === speakToken; i++) {
-    const q = new URLSearchParams({ ie: "UTF-8", client: "tw-ob", tl: code, q: parts[i], total: parts.length, idx: i, textlen: parts[i].length });
-    await playUrl("https://translate.google.com/translate_tts?" + q, token, rate);
+  playingLang = rateLang;
+  try {
+    for (let i = 0; i < parts.length && token === speakToken; i++) {
+      const q = new URLSearchParams({ ie: "UTF-8", client: "tw-ob", tl: code, q: parts[i], total: parts.length, idx: i, textlen: parts[i].length });
+      await playUrl("https://translate.google.com/translate_tts?" + q, token, rateFor(rateLang));   // current rate for each chunk
+    }
+  } finally {
+    if (token === speakToken) playingLang = null;
   }
 }
 function speakDevice(text, side, voice, token) {
@@ -979,7 +1019,7 @@ async function speak(text, side, voice = pickVoice(side)) {
   markSpeaking(side);
   try {
     if (isGoogle(voice)) {
-      try { await speakGoogle(text, voice === GOOGLE ? effectiveLang(side) : voice.slice(GOOGLE.length + 1), token, rateFor(effectiveLang(side))); }
+      try { await speakGoogle(text, voice === GOOGLE ? effectiveLang(side) : voice.slice(GOOGLE.length + 1), token, effectiveLang(side)); }
       catch (e) {
         if (token !== speakToken) return;
         console.warn("Google voice failed:", e);
@@ -1013,7 +1053,47 @@ function closeVoiceMenus() {
 }
 // Voice menu views: "main", "voice" and "speed".
 const menuView = ["main", "main"];
-const speedLabel = r => r === 1 ? "Normal" : r + "×";
+const speedLabel = r => r === 1 ? "Normal" : +r.toFixed(2) + "×";
+// YouTube-style speed panel: big value, −/slider/+, preset chips. onChange fires as it moves; onSettle
+// (optional) once the user lets go, e.g. to play a sample.
+const SPEED_MIN = 0.25, SPEED_MAX = 2, SPEED_STEP = 0.05, SPEED_PRESETS = [0.5, 0.75, 1, 1.5, 2];
+function speedControl(initial, onChange, onSettle) {
+  const el = document.createElement("div");
+  el.className = "speedctl";
+  el.innerHTML = `
+    <div class="speedval"></div>
+    <div class="speedrow">
+      <button class="round" aria-label="Slower">−</button>
+      <input type="range" min="${SPEED_MIN}" max="${SPEED_MAX}" step="${SPEED_STEP}" aria-label="Playback speed">
+      <button class="round" aria-label="Faster">+</button>
+    </div>
+    <div class="chips">${SPEED_PRESETS.map(r => `<span class="chip"><button data-r="${r}">${r % 1 ? r : r.toFixed(1)}</button></span>`).join("")}</div>`;
+  const range = el.querySelector("input"), [minus, plus] = el.querySelectorAll(".round");
+  let value = initial, settleTimer;
+  const show = () => {
+    el.querySelector(".speedval").textContent = value.toFixed(2) + "x";
+    range.value = value;
+    range.style.setProperty("--fill", ((value - SPEED_MIN) / (SPEED_MAX - SPEED_MIN) * 100) + "%");
+    el.querySelectorAll(".chips button").forEach(b => b.classList.toggle("on", Math.abs(+b.dataset.r - value) < 0.001));
+    minus.disabled = value <= SPEED_MIN; plus.disabled = value >= SPEED_MAX;
+  };
+  const set = (r, settle) => {
+    value = Math.round(Math.min(SPEED_MAX, Math.max(SPEED_MIN, r)) / SPEED_STEP) * SPEED_STEP;
+    value = +value.toFixed(2);
+    show();
+    onChange(value);
+    if (settle && onSettle) { clearTimeout(settleTimer); settleTimer = setTimeout(onSettle, 350); }
+  };
+  el.onclick = e => e.stopPropagation();
+  range.oninput = () => set(+range.value, false);
+  range.onchange = () => set(+range.value, true);
+  minus.onclick = () => set(value - SPEED_STEP, true);
+  plus.onclick = () => set(value + SPEED_STEP, true);
+  el.querySelectorAll(".chips button").forEach(b => b.onclick = () => set(+b.dataset.r, true));
+  show();
+  return el;
+}
+
 // YouTube-style playback speed gauge (Material has no exact match): an open ring with a needle.
 const GAUGE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.2 9.8A8.5 8.5 0 1 1 14.2 3.8"/><path d="M12 12l4.3-4.3"/></svg>';
 function menuRow(icon, label, value, chevron) {
@@ -1057,13 +1137,12 @@ function renderVoiceMenu(side) {
 
   if (menuView[side] === "speed") {
     backHeader("Playback speed");
-    for (const r of SPEEDS) option(speedLabel(r), rateFor(code) === r, () => {
+    let live = false;
+    vlist.appendChild(speedControl(rateFor(code), r => {
       if (r === 1) delete settings.rates[code]; else settings.rates[code] = r;
       saveSettings();
-      menuView[side] = "main";
-      renderVoiceMenu(side);
-      speak(els.text[side].value.slice(0, 120) || lang, side);
-    });
+      live = applyLiveRate(code);
+    }, () => { if (!live) speak(els.text[side].value.slice(0, 120) || lang, side); }));
     return;
   }
 
@@ -1390,19 +1469,12 @@ function renderSettingsMenu() {
     back.onclick = rerender("main");
     m.insertBefore(back, vlist);
     vfoot.remove();
-    for (const r of SPEEDS) {
-      const b = document.createElement("button");
-      b.innerHTML = '<span class="name"></span>';
-      b.querySelector(".name").textContent = speedLabel(r);
-      b.className = uniformRate === r ? "sel" : "";
-      b.onclick = e => {
-        settings.rates = {};
-        if (r === 1) delete settings.defaultRate; else settings.defaultRate = r;
-        saveSettings();
-        rerender("main")(e);
-      };
-      vlist.appendChild(b);
-    }
+    vlist.appendChild(speedControl(uniformRate ?? settings.defaultRate ?? 1, r => {
+      settings.rates = {};
+      if (r === 1) delete settings.defaultRate; else settings.defaultRate = r;
+      saveSettings();
+      applyLiveRate();
+    }));
     return;
   }
 
