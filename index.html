@@ -730,7 +730,7 @@ document.getElementById("settings-btn").onclick = e => {
 document.addEventListener("click", e => { if (!settingsPanel.hidden && !settingsPanel.contains(e.target)) settingsPanel.hidden = true; });
 document.addEventListener("keydown", e => { if (e.key === "Escape") settingsPanel.hidden = true; });
 
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5];
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 if (!settings.rates) settings.rates = {};
 const rateFor = code => settings.rates[code] ?? settings.defaultRate ?? 1;
 
@@ -915,10 +915,12 @@ function closeVoiceMenus() {
 // Voice menu views: "main", "voice" and "speed".
 const menuView = ["main", "main"];
 const speedLabel = r => r === 1 ? "Normal" : r + "×";
+// YouTube-style playback speed gauge (Material has no exact match): an open ring with a needle.
+const GAUGE_SVG = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20.2 9.8A8.5 8.5 0 1 1 14.2 3.8"/><path d="M12 12l4.3-4.3"/></svg>';
 function menuRow(icon, label, value, chevron) {
   const b = document.createElement("button");
   b.className = "vrow";
-  b.innerHTML = `<span class="ms">${icon}</span><span class="label"></span><span class="value"></span>` + `<span class="ms chev"${chevron ? "" : ' style="visibility:hidden"'}>chevron_right</span>`;
+  b.innerHTML = `<span class="ms">${icon === "gauge" ? GAUGE_SVG : icon}</span><span class="label"></span><span class="value"></span>` + `<span class="ms chev"${chevron ? "" : ' style="visibility:hidden"'}>chevron_right</span>`;
   b.querySelector(".label").textContent = label;
   b.querySelector(".value").textContent = value;
   return b;
@@ -1005,7 +1007,7 @@ function renderVoiceMenu(side) {
   auto.title = "Read new translations in this box aloud";
   auto.onclick = e => { e.stopPropagation(); setAutoRead(side, !settings.autoRead[side]); renderVoiceMenu(side); };
   vfoot.appendChild(auto);
-  const speed = menuRow("speed", "Playback speed", speedLabel(rateFor(code)), true);
+  const speed = menuRow("gauge", "Playback speed", speedLabel(rateFor(code)), true);
   speed.onclick = e => { e.stopPropagation(); menuView[side] = "speed"; renderVoiceMenu(side); };
   vfoot.appendChild(speed);
   vfoot.appendChild(voice);
@@ -1319,7 +1321,7 @@ function renderSettingsMenu() {
     rerender("main")(e);
   };
   vfoot.appendChild(auto);
-  const speed = menuRow("speed", "Playback speed", uniformRate ? speedLabel(uniformRate) : "Mixed", true);
+  const speed = menuRow("gauge", "Playback speed", uniformRate ? speedLabel(uniformRate) : "Mixed", true);
   speed.onclick = rerender("speed");
   vfoot.appendChild(speed);
 }
