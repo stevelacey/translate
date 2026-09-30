@@ -79,11 +79,10 @@
   :root[data-theme="dark"] { color-scheme: dark; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
   * { box-sizing: border-box; }
-  /* Keyboard focus ring drawn inside controls so it never spills over neighbouring borders */
   button:focus { outline: none; }
   button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
   html, body { margin: 0; height: 100%; }
-  html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }   /* no double-tap zoom */
+  html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
   body {
     background: var(--bg);
     color: var(--text);
@@ -189,7 +188,6 @@
   }
   .vmenu button:hover { background: var(--hover); }
   .vmenu button.sel { color: var(--blue); }
-  /* Selected item in any menu: the same Material check icon */
   .vmenu button.sel::before, .picker .opt.sel::before {
     content: "check"; font-family: "Material Symbols Outlined"; font-size: 20px; line-height: 1;
     position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
@@ -395,8 +393,30 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem("tr:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("tr:" + k, JSON.stringify(v)); } catch {} }
 };
+// First visit: travellers get the local language on the right, locals get English.
+const COUNTRY_LANG = {
+  BR: "pt", PT: "pt-PT", ES: "es", MX: "es", AR: "es", CO: "es", CL: "es", PE: "es", VE: "es", EC: "es", GT: "es",
+  CU: "es", BO: "es", DO: "es", HN: "es", PY: "es", SV: "es", NI: "es", CR: "es", PA: "es", UY: "es", PR: "es",
+  FR: "fr", BE: "nl", NL: "nl", DE: "de", AT: "de", CH: "de", LU: "fr", IT: "it", PL: "pl", CZ: "cs", SK: "sk",
+  HU: "hu", RO: "ro", MD: "ro", BG: "bg", GR: "el", CY: "el", TR: "tr", RU: "ru", BY: "be", UA: "uk", SE: "sv",
+  NO: "no", DK: "da", FI: "fi", IS: "is", EE: "et", LV: "lv", LT: "lt", HR: "hr", RS: "sr", ME: "sr", SI: "sl",
+  BA: "bs", MK: "mk", AL: "sq", MT: "mt", GE: "ka", AM: "hy", AZ: "az", KZ: "kk", UZ: "uz", KG: "ky", TJ: "tg",
+  JP: "ja", KR: "ko", CN: "zh-CN", TW: "zh-TW", HK: "zh-TW", MO: "zh-TW", TH: "th", VN: "vi", ID: "id", MY: "ms",
+  PH: "tl", KH: "km", LA: "lo", MM: "my", MN: "mn", IN: "hi", PK: "ur", BD: "bn", NP: "ne", LK: "si", IL: "iw",
+  IR: "fa", AF: "ps", SA: "ar", AE: "ar", EG: "ar", MA: "ar", DZ: "ar", TN: "ar", JO: "ar", LB: "ar", IQ: "ar",
+  QA: "ar", KW: "ar", OM: "ar", BH: "ar", LY: "ar", SY: "ar", YE: "ar", SD: "ar", KE: "sw", TZ: "sw", ET: "am",
+  SO: "so", RW: "rw", MG: "mg", HT: "ht", SN: "fr", CI: "fr", CM: "fr", ML: "fr", CD: "fr", AO: "pt", MZ: "pt",
+};
+function guessLangs() {
+  const target = COUNTRY_LANG[window.COUNTRY];
+  if (!target) return [AUTO, "en"];
+  const base = tag => tag.toLowerCase().split(/[-_]/)[0];
+  const browser = { fil: "tl", he: "iw", nb: "no", nn: "no" }[base(navigator.language || "en")] ?? base(navigator.language || "en");
+  return [AUTO, browser === base(target) ? "en" : target];
+}
+
 const state = {
-  lang: store.get("lang", [AUTO, "en"]),              // selected language per side ("auto" = detect)
+  lang: store.get("lang", null) ?? guessLangs(),
   recent: store.get("recent", [["en", "es", "fr"], ["en", "es", "fr"]]),
   detected: [null, null],                             // last detected language per side
   source: null,                                       // side the user last typed in
@@ -413,7 +433,6 @@ const els = {
   pickerList: document.getElementById("picker-list"),
 };
 
-// The effective language of a side: its selection, or what we detected there, or English as a last resort.
 function effectiveLang(side) {
   const l = state.lang[side];
   return l !== AUTO ? l : (state.detected[side] || "en");
@@ -432,7 +451,6 @@ async function googleTranslate(text, sl, tl, signal) {
     return Array.isArray(first) ? { text: first[0], detected: first[1] } : { text: first, detected: null };
   } catch (e) {
     if (e.name === "AbortError") throw e;
-    // fallback endpoint
     const u2 = `https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=${encodeURIComponent(sl)}&tl=${encodeURIComponent(tl)}`;
     const r = await fetch(u2, { method: "POST", body, signal });
     if (!r.ok) throw new Error("HTTP " + r.status);
@@ -482,7 +500,6 @@ async function translateFrom(side) {
   }
 }
 
-// Only show the loading bar if the request is actually slow, so quick translations don't flicker.
 let loadTimer = null;
 function setLoading(on) {
   clearTimeout(loadTimer);
@@ -514,7 +531,6 @@ function renderTabs(side) {
   }
 }
 
-// Keep the big text until it would overflow the box, then step down a size at a time.
 function fitText(t) {
   t.classList.remove("medium", "small");
   for (const size of ["medium", "small"]) {
@@ -551,7 +567,6 @@ function chooseLang(side, code) {
   retranslate();
 }
 
-// Re-run the translation from whichever side the user last typed in.
 function retranslate() {
   const src = state.source ?? (els.text[0].value ? 0 : els.text[1].value ? 1 : null);
   if (src == null) return;
@@ -587,7 +602,6 @@ document.querySelectorAll(".copy").forEach(b => b.onclick = async () => {
 });
 
 
-// Swap only swaps the languages; text stays put since both boxes are live anyway.
 function swap() {
   const [a, b] = [effectiveLang(0), effectiveLang(1)];
   const aWasAuto = state.lang[0] === AUTO, bWasAuto = state.lang[1] === AUTO;
@@ -651,7 +665,7 @@ els.pickerSearch.addEventListener("keydown", e => {
 });
 document.addEventListener("click", e => { if (pickerSide != null && !els.picker.contains(e.target)) closePicker(); });
 
-// ---- settings: theme, voice speed, voice ----
+// ---- settings ----
 const settings = Object.assign({ theme: "system", rate: 1, voices: {}, autoRead: [false, false] }, store.get("settings", {}));
 if (!Array.isArray(settings.autoRead)) settings.autoRead = [false, false];   // was a single on/off switch
 // During a conversation both boxes read aloud temporarily; save the user's own choice instead.
@@ -687,29 +701,25 @@ document.getElementById("settings-btn").onclick = e => {
 document.addEventListener("click", e => { if (!settingsPanel.hidden && !settingsPanel.contains(e.target)) settingsPanel.hidden = true; });
 document.addEventListener("keydown", e => { if (e.key === "Escape") settingsPanel.hidden = true; });
 
-// Voice speed is remembered per language: settings.rates[googleCode].
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5];
 if (!settings.rates) settings.rates = {};
 const rateFor = code => settings.rates[code] ?? 1;
 
-// Google codes -> BCP 47 tags the speech APIs understand.
 function bcp47(code) {
   if (code === AUTO) return navigator.language || "en-US";
   return ({ iw: "he", jw: "jv", pt: "pt-BR", "mni-Mtei": "mni" })[code] || code;
 }
 const prefix = tag => tag.toLowerCase().split(/[-_]/)[0];
 
-// Voices are chosen per box and per language: settings.voices[side][googleCode] = "google" | device voiceURI.
-// Google's voice (the one translate.google.com uses) is the default; device voices are the fallback.
+// settings.voices[side][code] = "google" | "google:<accent>" | device voiceURI
 if (!settings.voices || !settings.voices[0]) settings.voices = { 0: {}, 1: {} };
 const GOOGLE = "google";
-// Extra accents Google's voice supports (requested via a regional language code); other languages have one voice.
+// Google's regional accents; other languages have a single voice.
 const GOOGLE_ACCENTS = {
   en: { def: ["English (US)", "US"], more: [["en-GB", "English (UK)", "GB"], ["en-AU", "English (Australia)", "AU"], ["en-IN", "English (India)", "IN"], ["en-NG", "English (Nigeria)", "NG"]] },
   es: { def: ["Spanish (Latin America)", null], more: [["es-ES", "Spanish (Spain)", "ES"]] },
   fr: { def: ["French (France)", "FR"], more: [["fr-CA", "French (Canada)", "CA"]] },
 };
-// Country whose flag best represents each language's single Google voice (only where it's unambiguous).
 const LANG_FLAG = {
   pt: "BR", "pt-PT": "PT", de: "DE", it: "IT", ja: "JP", ko: "KR", "zh-CN": "CN", "zh-TW": "TW", ru: "RU", nl: "NL", pl: "PL",
   tr: "TR", sv: "SE", da: "DK", no: "NO", fi: "FI", el: "GR", cs: "CZ", hu: "HU", ro: "RO", uk: "UA", th: "TH", vi: "VN",
@@ -732,12 +742,11 @@ function voicesFor(tag) {
   const seen = new Set();
   return speechSynthesis.getVoices()
     .filter(v => prefix(v.lang) === prefix(tag) && !JOKE_VOICES.test(v.name))
-    // Safari lists some voices more than once (same voice, or compact + enhanced copies); keep one of each.
+    // Safari lists some voices twice (e.g. compact + enhanced); keep the best one.
     .sort((a, b) => voiceQuality(b) - voiceQuality(a))
     .filter(v => { const k = voiceName(v) + "|" + v.lang; if (seen.has(k)) return false; seen.add(k); return true; })
     .sort((a, b) => (norm(b.lang) === norm(tag)) - (norm(a.lang) === norm(tag)) || a.name.localeCompare(b.name));
 }
-// Returns GOOGLE, "google:<accent code>" or a SpeechSynthesisVoice.
 function pickVoice(side) {
   const code = effectiveLang(side), chosen = settings.voices[side][code];
   if (!chosen || chosen.startsWith(GOOGLE)) return chosen || GOOGLE;
@@ -747,8 +756,7 @@ function pickVoice(side) {
 const player = new Audio();
 const SILENT_MP3 = "data:audio/mpeg;base64,SUQzBAAAAAAAIlRTU0UAAAAOAAADTGF2ZjYzLjEuMTAxAAAAAAAAAAAAAAD/84TAAAAAAAAAAAAASW5mbwAAAA8AAAAFAAACoABtbW1tbW1tbW1tbW1tbW1tbW1tkpKSkpKSkpKSkpKSkpKSkpKSkpK2tra2tra2tra2tra2tra2tra2ttvb29vb29vb29vb29vb29vb29vb//////////////////////////8AAAAATGF2YzYzLjEuAAAAAAAAAAAAAAAAJARQAAAAAAAAAqDr4QetAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/80TEAAAAA0gAAAAATEFNRTQuMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FNC7/80TEUwAAA0gAAAAAMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVMQU1FNC7/80TEpgAAA0gAAAAAMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80TErAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80TErAAAA0gAAAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=";
 let speakToken = 0;
-// iOS only lets a page play audio it started from a tap; playing silence during one unlocks the player.
-// Done once, on the first tap/keypress anywhere, and never while something is playing.
+// iOS only plays audio started from a tap, so play silence on the first tap to unlock the player.
 let audioUnlocked = false;
 function unlockAudio() {
   if (audioUnlocked || !player.paused) return;
@@ -769,7 +777,7 @@ function stopSpeaking() {
   markSpeaking(null);
 }
 
-// Google's endpoint takes ~200 characters at a time, so split on sentence / word boundaries.
+// Google's TTS takes ~200 characters per request.
 function ttsChunks(text, max = 190) {
   const out = [];
   let rest = text.replace(/\s+/g, " ").trim();
@@ -790,11 +798,9 @@ function playUrl(url, token, rate) {
     const cleanup = () => { clearTimeout(startGuard); clearInterval(endWatch); player.onended = player.onerror = player.onpause = player.onplaying = null; };
     const ok = () => { cleanup(); resolve(); };
     const fail = e => { cleanup(); reject(e); };
-    // If it hasn't started after a few seconds (stalled / blocked), give up rather than "playing" silence.
     const startGuard = setTimeout(() => fail(new Error("audio didn't start")), 8000);
     player.onplaying = () => clearTimeout(startGuard);
-    // Google sends no length, so Safari treats the clip as a live stream and never fires "ended":
-    // playback just parks at the end of the data. Treat "at the end of the buffer and not moving" as ended.
+    // Google sends no length, so Safari never fires "ended"; detect playback parked at the end of the buffer.
     let lastT = -1, still = 0;
     const endWatch = setInterval(() => {
       const b = player.buffered;
@@ -838,7 +844,6 @@ function speakDevice(text, side, voice, token) {
     speechSynthesis.speak(u);
   });
 }
-// Resolves when the speech has finished (or was stopped).
 async function speak(text, side, voice = pickVoice(side)) {
   stopSpeaking();
   if (!text) return;
@@ -878,8 +883,7 @@ function closeVoiceMenus() {
   vmenus.forEach(m => m.hidden = true);
   document.querySelectorAll(".voicebtn").forEach(b => b.classList.remove("open"));
 }
-// Voice menu: the voice list scrolls; auto-read and speed stay pinned at the bottom.
-// Voice menu views: "main" (Voice / Autoplay / Playback speed rows), "voice" and "speed" (pick one).
+// Voice menu views: "main", "voice" and "speed".
 const menuView = ["main", "main"];
 const speedLabel = r => r === 1 ? "Normal" : r + "×";
 function menuRow(icon, label, value, chevron) {
@@ -963,7 +967,6 @@ function renderVoiceMenu(side) {
     return;
   }
 
-  // Main view: settings rows, YouTube-style.
   vlist.remove();
   const voice = menuRow("record_voice_over", "Voice", chosenLabel, true);
   voice.onclick = e => { e.stopPropagation(); menuView[side] = "voice"; renderVoiceMenu(side); };
@@ -990,12 +993,10 @@ if (window.speechSynthesis) speechSynthesis.addEventListener("voiceschanged", ()
 applyTheme();
 
 // ---- microphone & conversation mode ----
-// Browsers must be told the language up front, so conversation mode takes turns:
-// listen in one box's language -> translate -> read it aloud -> listen in the other box's language.
+// Speech recognition needs the language up front, so conversation mode alternates between the boxes.
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Firefox has no speech recognition, and Brave blocks Chrome's; explain rather than hide the buttons.
-// Edge uses Microsoft's speech service, which sometimes drops a request with a "network" error even
-// after working fine. Once voice input has worked, treat that as a hiccup rather than "unsupported".
+// Edge's speech service drops the odd request with "network"; only treat that as unsupported before it has worked.
 let voiceWorked = false;
 const noVoiceInput = () => toast("Voice input isn't available in this browser. Use Chrome or Safari, or your device's dictation.", 5000);
 const conv = { on: false, misses: 0 };
@@ -1013,9 +1014,8 @@ function markTurn(side) {
   micBtns.forEach((b, s) => b.classList.toggle("listening", s === side));
 }
 
-// Recognizer lifecycle. Safari's speech service (macOS "localspeechrecognition") crashes if a new
-// recognition session starts while the previous one is still shutting down, so sessions are strictly
-// serialized: abort the old one, wait for its "end", leave a short gap, then start the next.
+// Safari's speech service crashes if a session starts while the last one is still ending, so sessions
+// are serialized: abort, wait for "end", leave a gap, then start.
 let recDone = Promise.resolve(), lastRecEnd = 0, listenSeq = 0, recFailures = 0;
 const REC_GAP = 400;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1060,8 +1060,7 @@ async function listen(side) {
     if (e.error === "not-allowed") { toast("Microphone permission denied"); return stopConversation(); }
     if (e.error === "service-not-allowed" || (e.error === "network" && !voiceWorked)) { noVoiceInput(); return stopConversation(); }
     if (e.error === "language-not-supported") { toast(`Voice input doesn't support ${langName(side)} in this browser`, 4000); return stopConversation(); }
-    // Anything else (a dropped request, the speech service restarting…): conversation mode retries with
-    // back-off in finishTurn; a one-off mic tap just says so.
+    // Anything else is transient: conversation mode retries with back-off in finishTurn.
     failed = true;
     if (!conv.on) toast("The speech service didn't respond. Tap the mic to try again.", 4000);
   };
@@ -1075,7 +1074,7 @@ async function listen(side) {
 
 async function finishTurn(side, heard, failed, seq) {
   markTurn(null);
-  // Only carry on if nothing else (a mic tap, Stop) has taken over since this turn started.
+  // Skip if a mic tap or Stop has taken over since this turn started.
   const next = (s, delay) => setTimeout(() => conv.on && listenSeq === seq && listen(s), delay);
   if (!heard) {
     if (!conv.on) return;
@@ -1138,8 +1137,7 @@ const convBtn = document.getElementById("conv-btn");
 convBtn.onclick = () => !SR ? noVoiceInput() : conv.on ? stopConversation() : startConversation(0);
 document.getElementById("conv-stop").onclick = stopConversation;
 
-// Per-box auto read-aloud: anything translated into a box with this on gets spoken.
-// The toggle lives in the box's voice menu; a dot on the menu arrow shows when it's on.
+// Per-box autoplay; a dot on the voice menu arrow shows when it's on.
 function renderAutoRead() {
   document.querySelectorAll(".voicebtn").forEach(b => {
     const s = +b.dataset.side;
@@ -1157,7 +1155,7 @@ function setAutoRead(side, on) {
 }
 renderAutoRead();
 
-// iOS Safari ignores user-scalable=no for pinches, so block its pinch gestures directly.
+// iOS ignores user-scalable=no for pinches.
 for (const type of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(type, e => e.preventDefault(), { passive: false });
 
 let toastTimer;
