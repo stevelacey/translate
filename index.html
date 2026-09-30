@@ -203,6 +203,7 @@
     color: var(--muted); cursor: pointer; display: grid; place-items: center; flex-shrink: 0;
   }
   .swap:hover { background: var(--hover); }
+  .swap:disabled { opacity: .38; cursor: default; background: none; }
 
   .panes { display: flex; gap: 0; flex: 1; min-height: 320px; margin-top: 0; position: relative; }
   .loadbar { position: fixed; left: 0; right: 0; bottom: 0; height: 3px; overflow: hidden; z-index: 2; opacity: 0; transition: opacity .15s; pointer-events: none; }
@@ -418,11 +419,13 @@ function guessLangs() {
 }
 
 const state = {
-  lang: store.get("lang", null) ?? guessLangs(),
+  lang: store.get("lang", null) ?? guessLangs(),     // only the left side can be "auto" (Detect)
   recent: store.get("recent", [["en", "es", "fr"], ["en", "es", "fr"]]),
   detected: [null, null],                             // last detected language per side
   source: null,                                       // side the user last typed in
 };
+if (state.lang[1] === AUTO) state.lang[1] = state.lang[0] === "en" ? "es" : "en";
+
 const els = {
   text: [document.getElementById("text-0"), document.getElementById("text-1")],
   panes: [...document.querySelectorAll(".pane")],
@@ -523,12 +526,16 @@ function renderTabs(side) {
   const detectLabel = sel === AUTO && state.detected[side] && LANGS[state.detected[side]]
     ? `${LANGS[state.detected[side]]} - Detected` : "Detect language";
   if (sel !== AUTO && !state.recent[side].includes(sel)) state.recent[side] = [sel, ...state.recent[side]].slice(0, 3);
-  const items = [[AUTO, detectLabel], ...state.recent[side].map(c => [c, LANGS[c]])];
+  const items = [...(side === 0 ? [[AUTO, detectLabel]] : []), ...state.recent[side].map(c => [c, LANGS[c]])];
   for (const [code, label] of items) {
     const b = document.createElement("button");
     b.className = "tab" + (code === sel ? " active" : "");
     b.textContent = label;
-    b.onclick = () => chooseLang(side, code);
+    b.onclick = e => {
+      if (code !== state.lang[side]) return chooseLang(side, code);
+      e.stopPropagation();               // clicking the selected language opens (or closes) the full list
+      openPicker(side);
+    };
     box.appendChild(b);
   }
 }
@@ -553,17 +560,34 @@ function refresh() {
     fitText(t);
     els.panes[s].classList.toggle("output", state.source != null && state.source !== s && n > 0);
   }
+  const swapBtn = document.getElementById("swap");
+  swapBtn.disabled = state.lang[0] === AUTO;
+  swapBtn.title = swapBtn.disabled ? "Choose a language to swap (not Detect language)" : "Swap languages (Ctrl+Shift+S)";
   store.set("lang", state.lang);
   store.set("recent", state.recent);
 }
 
 function chooseLang(side, code) {
-  state.lang[side] = code;
-  if (code !== AUTO) {
-    const r = state.recent[side].filter(c => c !== code);
-    r.unshift(code);
-    state.recent[side] = r.slice(0, 3);
+  // Picking the other box's language swaps them, like Google. With Detect on the left, the detected
+  // language takes the left's place in the swap.
+  if (code !== AUTO && code === state.lang[1 - side]) {
+    closePicker();
+    if (state.lang[0] !== AUTO) return swap();
+    const detected = state.detected[0];
+    if (detected && detected !== code) {
+      state.lang[0] = detected;
+      return swap();
+    }
+    // Left text is already in this language (or undetected): keep it and give the right a new language.
+    state.lang = [code, code === "en" ? "es" : "en"];
+    for (const s of [0, 1]) if (!state.recent[s].includes(state.lang[s])) state.recent[s] = [state.lang[s], ...state.recent[s]].slice(0, 3);
+    state.source = 0;
+    refresh();
+    return retranslate();
   }
+  state.lang[side] = code;
+  // Recent tabs stay put; only a language that isn't already there gets added (dropping the oldest).
+  if (code !== AUTO && !state.recent[side].includes(code)) state.recent[side] = [code, ...state.recent[side]].slice(0, 3);
   closePicker();
   refresh();
   retranslate();
@@ -605,10 +629,8 @@ document.querySelectorAll(".copy").forEach(b => b.onclick = async () => {
 
 
 function swap() {
-  const [a, b] = [effectiveLang(0), effectiveLang(1)];
-  const aWasAuto = state.lang[0] === AUTO, bWasAuto = state.lang[1] === AUTO;
-  state.lang = [bWasAuto ? AUTO : b, aWasAuto ? AUTO : a];
-  state.detected = [state.detected[1], state.detected[0]];
+  if (state.lang[0] === AUTO) return;
+  state.lang = [state.lang[1], state.lang[0]];
   for (const s of [0, 1]) if (state.lang[s] !== AUTO && !state.recent[s].includes(state.lang[s])) {
     state.recent[s] = [state.lang[s], ...state.recent[s]].slice(0, 3);
   }
@@ -649,7 +671,7 @@ function closePicker() {
 }
 function renderPicker() {
   const q = els.pickerSearch.value.trim().toLowerCase();
-  const entries = [[AUTO, "Detect language"], ...Object.entries(LANGS).sort((a, b) => a[1].localeCompare(b[1]))]
+  const entries = [...(pickerSide === 0 ? [[AUTO, "Detect language"]] : []), ...Object.entries(LANGS).sort((a, b) => a[1].localeCompare(b[1]))]
     .filter(([c, n]) => !q || n.toLowerCase().includes(q) || c.toLowerCase() === q);
   els.pickerList.innerHTML = "";
   for (const [code, name] of entries) {
