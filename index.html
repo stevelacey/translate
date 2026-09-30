@@ -81,6 +81,15 @@
   * { box-sizing: border-box; }
   header, button, .langbar, .picker, .vmenu, .settings, .foot, .convbar, .toast { -webkit-user-select: none; user-select: none; }
   input, textarea { -webkit-user-select: text; user-select: text; }
+  button, .tab { position: relative; }
+  .ripple-host { position: fixed; z-index: 100; overflow: hidden; pointer-events: none; }
+  .ripple {
+    position: absolute; border-radius: 50%; background: currentColor; opacity: .1; transform: scale(0);
+    animation: ripple .3s cubic-bezier(.2, 0, 0, 1) forwards; transition: opacity .35s linear;
+  }
+  .ripple-host.light .ripple { opacity: .2; }
+  .ripple.out { opacity: 0; }
+  @keyframes ripple { to { transform: scale(1); } }
   button:focus { outline: none; }
   button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
   html, body { margin: 0; height: 100%; }
@@ -1181,6 +1190,41 @@ renderAutoRead();
 
 // iOS ignores user-scalable=no for pinches.
 for (const type of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(type, e => e.preventDefault(), { passive: false });
+
+// Material-style ripple on buttons and tabs (centred on icon buttons, from the touch point elsewhere).
+// It's drawn on an overlay rather than inside the button, so re-rendering the button (tabs, menus)
+// doesn't cut it short, and it always finishes expanding before fading, even on a quick tap.
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+document.addEventListener("pointerdown", e => {
+  const el = e.target.closest("button, a.iconbtn");
+  if (!el || el.disabled || reduceMotion.matches) return;
+  const r = el.getBoundingClientRect();
+  const host = document.createElement("span");
+  host.className = "ripple-host" + (el.matches(".mic.listening, .speak.playing, .convbtn.on, .convbar button") ? " light" : "");
+  const cs = getComputedStyle(el);   // ripple takes the button's own colour (blue on the active tab, etc.)
+  host.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;border-radius:${cs.borderRadius};color:${cs.color}`;
+  const centred = el.matches(".iconbtn, .more, .swap");
+  const size = Math.hypot(r.width, r.height) * (centred ? 1 : 2);
+  const x = centred ? r.width / 2 : e.clientX - r.left, y = centred ? r.height / 2 : e.clientY - r.top;
+  const dot = document.createElement("span");
+  dot.className = "ripple";
+  dot.style.cssText = `width:${size}px;height:${size}px;left:${x - size / 2}px;top:${y - size / 2}px`;
+  host.appendChild(dot);
+  document.body.appendChild(host);
+  // Inside a dropdown, drop the ripple as soon as the item goes (menu closed or switched view).
+  const menu = el.closest(".vmenu, .picker, .settings");
+  if (menu) (function watch() {
+    if (!host.isConnected) return;
+    if (!el.isConnected || menu.hidden) host.remove(); else requestAnimationFrame(watch);
+  })();
+  const start = performance.now();
+  const release = () => setTimeout(() => {
+    dot.classList.add("out");
+    setTimeout(() => host.remove(), 350);
+  }, Math.max(0, 300 - (performance.now() - start)));
+  addEventListener("pointerup", release, { once: true });
+  addEventListener("pointercancel", release, { once: true });
+}, { passive: true });
 
 let toastTimer;
 function toast(msg, ms = 1800) {
