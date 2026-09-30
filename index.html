@@ -90,6 +90,12 @@
   .ripple-host.light .ripple { opacity: .2; }
   .ripple.out { opacity: 0; }
   @keyframes ripple { to { transform: scale(1); } }
+  .tooltip {
+    position: fixed; z-index: 200; pointer-events: none; white-space: nowrap; max-width: 320px;
+    background: #3c4043; color: #fff; font: 13px/1.35 Roboto, Arial, sans-serif; padding: 6px 10px; border-radius: 6px;
+    opacity: 0; transform: scale(.92); transition: opacity .1s, transform .1s;
+  }
+  .tooltip.show { opacity: 1; transform: none; }
   button:focus { outline: none; }
   button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
   html, body { margin: 0; height: 100%; }
@@ -312,8 +318,8 @@
 <header>
   <a class="g" href="https://steve.ly" target="_blank" rel="noopener" title="steve.ly"><span>S</span><span>t</span><span>e</span><span>e</span><span>v</span><span>e</span></a><b>Translate</b>
   <span class="spacer"></span>
-  <button class="convbtn" id="conv-btn" title="Conversation mode: speak, hear the translation, then it listens for the reply"><span class="ms" style="font-size:20px">forum</span><span class="lbl">Conversation</span></button>
-  <button class="iconbtn" id="theme-btn" title="Toggle dark mode"><span class="ms i-moon" style="font-size:24px">dark_mode</span><span class="ms i-sun" style="font-size:24px" hidden>light_mode</span></button>
+  <button class="convbtn" id="conv-btn" title="Conversation mode"><span class="ms" style="font-size:20px">forum</span><span class="lbl">Conversation</span></button>
+  <button class="iconbtn" id="theme-btn" title="Switch between light and dark theme"><span class="ms i-moon" style="font-size:24px">dark_mode</span><span class="ms i-sun" style="font-size:24px" hidden>light_mode</span></button>
   <div class="hdr-wrap">
     <button class="iconbtn" id="settings-btn" title="Settings"><span class="ms" style="font-size:24px">settings</span></button>
     <div class="settings" id="settings" hidden>
@@ -330,12 +336,12 @@
 <main>
   <div class="langbar">
     <div class="side-tabs" id="tabs-0"></div>
-    <button class="more" data-side="0" title="More languages"><span class="ms" style="font-size:24px">expand_more</span></button>
-    <button class="swap" id="swap" title="Swap languages (Ctrl+Shift+S)">
+    <button class="more" data-side="0" title="More source languages"><span class="ms" style="font-size:24px">expand_more</span></button>
+    <button class="swap" id="swap" title="Swap languages">
       <span class="ms" style="font-size:24px">swap_horiz</span>
     </button>
     <div class="side-tabs" id="tabs-1"></div>
-    <button class="more" data-side="1" title="More languages"><span class="ms" style="font-size:24px">expand_more</span></button>
+    <button class="more" data-side="1" title="More target languages"><span class="ms" style="font-size:24px">expand_more</span></button>
     <div class="picker" id="picker" hidden>
       <input id="picker-search" placeholder="Search languages" autocomplete="off">
       <div class="list" id="picker-list"></div>
@@ -345,24 +351,24 @@
   <div class="panes">
     <div class="pane left" data-side="0">
       <textarea id="text-0" placeholder="Enter text" spellcheck="false"></textarea>
-      <button class="iconbtn clear" data-side="0" title="Clear" hidden><span class="ms" style="font-size:24px">close</span></button>
+      <button class="iconbtn clear" data-side="0" title="Clear text" hidden><span class="ms" style="font-size:24px">close</span></button>
       <div class="foot">
         <button class="iconbtn mic" data-side="0" title="Translate by voice"><span class="ms" style="font-size:24px">mic</span></button>
-        <span class="voicewrap"><button class="iconbtn speak" data-side="0" title="Listen"><span class="ms" style="font-size:24px">volume_up</span></button><button class="iconbtn voicebtn" data-side="0" title="Choose voice"><span class="ms" style="font-size:20px">expand_more</span></button><div class="vmenu" data-side="0" hidden></div></span>
+        <span class="voicewrap"><button class="iconbtn speak" data-side="0" title="Listen"><span class="ms" style="font-size:24px">volume_up</span></button><button class="iconbtn voicebtn" data-side="0" title="Voice options"><span class="ms" style="font-size:20px">expand_more</span></button><div class="vmenu" data-side="0" hidden></div></span>
         <span class="grow"></span>
         <span class="count" id="count-0">0 / 5,000</span>
-        <button class="iconbtn copy" data-side="0" title="Copy"><span class="ms" style="font-size:22px">content_copy</span></button>
+        <button class="iconbtn copy" data-side="0" title="Copy text"><span class="ms" style="font-size:22px">content_copy</span></button>
       </div>
     </div>
     <div class="pane right" data-side="1">
       <textarea id="text-1" placeholder="Enter text" spellcheck="false"></textarea>
-      <button class="iconbtn clear" data-side="1" title="Clear" hidden><span class="ms" style="font-size:24px">close</span></button>
+      <button class="iconbtn clear" data-side="1" title="Clear text" hidden><span class="ms" style="font-size:24px">close</span></button>
       <div class="foot">
         <button class="iconbtn mic" data-side="1" title="Translate by voice"><span class="ms" style="font-size:24px">mic</span></button>
-        <span class="voicewrap"><button class="iconbtn speak" data-side="1" title="Listen"><span class="ms" style="font-size:24px">volume_up</span></button><button class="iconbtn voicebtn" data-side="1" title="Choose voice"><span class="ms" style="font-size:20px">expand_more</span></button><div class="vmenu" data-side="1" hidden></div></span>
+        <span class="voicewrap"><button class="iconbtn speak" data-side="1" title="Listen"><span class="ms" style="font-size:24px">volume_up</span></button><button class="iconbtn voicebtn" data-side="1" title="Voice options"><span class="ms" style="font-size:20px">expand_more</span></button><div class="vmenu" data-side="1" hidden></div></span>
         <span class="grow"></span>
         <span class="count" id="count-1">0 / 5,000</span>
-        <button class="iconbtn copy" data-side="1" title="Copy"><span class="ms" style="font-size:22px">content_copy</span></button>
+        <button class="iconbtn copy" data-side="1" title="Copy text"><span class="ms" style="font-size:22px">content_copy</span></button>
       </div>
     </div>
   </div>
@@ -398,6 +404,7 @@ const LANGS = {
   ur:"Urdu", ug:"Uyghur", uz:"Uzbek", vi:"Vietnamese", cy:"Welsh", xh:"Xhosa", yi:"Yiddish", yo:"Yoruba", zu:"Zulu"
 };
 const AUTO = "auto";
+const MOD = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent) ? "Cmd" : "Ctrl";
 const MAX = 5000;
 
 // ---- state (persisted) ----
@@ -571,7 +578,7 @@ function refresh() {
   }
   const swapBtn = document.getElementById("swap");
   swapBtn.disabled = state.lang[0] === AUTO;
-  swapBtn.title = swapBtn.disabled ? "Choose a language to swap (not Detect language)" : "Swap languages (Ctrl+Shift+S)";
+  swapBtn.title = `Swap languages (${MOD}+Shift+S)`;
   store.set("lang", state.lang);
   store.set("recent", state.recent);
 }
@@ -713,7 +720,6 @@ function applyTheme() {
   const dark = settings.theme === "dark" || (settings.theme === "system" && darkMQ.matches);
   document.querySelector(".i-moon").hidden = dark;
   document.querySelector(".i-sun").hidden = !dark;
-  document.getElementById("theme-btn").title = dark ? "Switch to light mode" : "Switch to dark mode";
   document.querySelectorAll("#theme-seg button").forEach(b => b.classList.toggle("on", b.dataset.v === settings.theme));
 }
 function setTheme(t) { settings.theme = t; saveSettings(); applyTheme(); }
@@ -1225,6 +1231,57 @@ document.addEventListener("pointerdown", e => {
   addEventListener("pointerup", release, { once: true });
   addEventListener("pointercancel", release, { once: true });
 }, { passive: true });
+
+// Google-style tooltips from title attributes (native ones suppressed): after a short hover with a
+// mouse, or on keyboard focus. Titles set later by the code are picked up on the next hover.
+const tip = document.createElement("div");
+tip.className = "tooltip";
+tip.setAttribute("role", "tooltip");
+document.body.appendChild(tip);
+let tipTimer = null, tipFor = null;
+function adoptTitle(el) {
+  if (el.title) {
+    el.dataset.tip = el.title;
+    el.setAttribute("aria-label", el.title);
+    el.removeAttribute("title");
+  }
+  return el.dataset.tip;
+}
+function showTip(el) {
+  const text = adoptTitle(el);
+  if (!text || !el.isConnected) return;
+  tip.textContent = text;
+  const r = el.getBoundingClientRect(), t = tip.getBoundingClientRect();
+  const left = Math.min(Math.max(8, r.left + r.width / 2 - t.width / 2), innerWidth - t.width - 8);
+  const below = r.bottom + 8;
+  tip.style.left = left + "px";
+  tip.style.top = (below + t.height > innerHeight - 8 ? r.top - t.height - 8 : below) + "px";
+  tip.classList.add("show");
+}
+function hideTip() {
+  clearTimeout(tipTimer);
+  tipFor = null;
+  tip.classList.remove("show");
+}
+document.addEventListener("pointerover", e => {
+  if (e.pointerType !== "mouse") return;
+  const el = e.target.closest("[title], [data-tip]");
+  if (el === tipFor) return;
+  hideTip();
+  if (!el) return;
+  adoptTitle(el);
+  tipFor = el;
+  tipTimer = setTimeout(() => showTip(el), 500);
+});
+document.addEventListener("mouseleave", hideTip);
+document.addEventListener("pointerdown", hideTip, true);
+addEventListener("scroll", hideTip, true);
+document.addEventListener("focusin", e => {
+  const el = e.target.closest?.("[title], [data-tip]");
+  if (el?.matches(":focus-visible")) { tipFor = el; showTip(el); }
+});
+document.addEventListener("focusout", hideTip);
+document.addEventListener("keydown", e => { if (e.key === "Escape") hideTip(); });
 
 let toastTimer;
 function toast(msg, ms = 1800) {
