@@ -148,8 +148,10 @@
     font: 500 14px "Google Sans", Roboto, sans-serif; padding: 0 16px; height: 48px;
     white-space: nowrap; position: relative; flex-shrink: 0;
   }
-  .tab:hover { background: var(--hover); }
-  .tab.active:hover { background: color-mix(in srgb, var(--blue) 8%, transparent); }
+  @media (hover: hover) {   /* touchscreens would leave the hover stuck on after a tap */
+    .tab:hover { background: var(--hover); }
+    .tab.active:hover { background: color-mix(in srgb, var(--blue) 8%, transparent); }
+  }
   .tab.active { color: var(--blue); }
   .ink { position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: var(--blue); border-radius: 2px 2px 0 0; pointer-events: none; }
   .ink.animate { transition: transform .25s cubic-bezier(.4, 0, .2, 1), width .25s cubic-bezier(.4, 0, .2, 1); }
@@ -321,17 +323,19 @@
   .toast.show { opacity: 1; transform: none; }
 
   @media (max-width: 760px) {
-    main { padding: 12px 16px; }
+    main { padding: 24px 0; }   /* same vertical padding as desktop; no side padding so the boxes run edge to edge */
+    .convbar { margin: 12px 16px; }
+    .status { padding: 0 16px; }
     .panes { flex-direction: column; }
-    .pane.left { border-radius: 16px 16px 0 0; }
-    .pane.right { border-radius: 0 0 16px 16px; border-left: 1px solid var(--border); border-top: 0; }
+    /* Edge to edge: lines above, between and below the boxes only */
+    .pane.left, .pane.right { border: 0; border-radius: 0; border-top: 1px solid var(--border); }
+    .pane.right { border-bottom: 1px solid var(--border); }
     .langbar .side-tabs .tab:not(.active) { display: none; }
     .langbar .side-tabs .tab.active { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; }
     header { padding: 0 12px 0 16px; gap: 6px; }
     /* Google's phone layout: one centred language per side, no chevrons or underline */
     .more, .langbar .ink { display: none; }
     .langbar .side-tabs { flex: 1; }
-    .langbar { padding: 0; }
     .langbar .swap { margin: 0 4px; }
     .langbar .side-tabs .tab.active { text-align: center; padding: 0 4px; }
     /* Full-screen language list */
