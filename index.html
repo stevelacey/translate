@@ -79,6 +79,8 @@
   :root[data-theme="dark"] { color-scheme: dark; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
   * { box-sizing: border-box; }
+  header, button, .langbar, .picker, .vmenu, .settings, .foot, .convbar, .toast { -webkit-user-select: none; user-select: none; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
   button:focus { outline: none; }
   button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
   html, body { margin: 0; height: 100%; }
