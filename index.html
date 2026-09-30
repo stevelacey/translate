@@ -655,6 +655,7 @@ function refresh() {
   swapBtn.title = `Swap languages (${MOD}+Shift+S)`;
   store.set("lang", state.lang);
   store.set("recent", state.recent);
+  store.set("text", { text: els.text.map(t => t.value), source: state.source, detected: state.detected });
 }
 
 function chooseLang(side, code) {
@@ -1506,6 +1507,13 @@ function toast(msg, ms = 1800) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 
+// Bring back whatever was in the boxes before the reload.
+const saved = store.get("text", null);
+if (saved?.text) {
+  saved.text.forEach((v, s) => els.text[s].value = String(v ?? "").slice(0, MAX));
+  state.source = saved.source ?? null;
+  state.detected = saved.detected ?? [null, null];
+}
 refresh();
 els.text[0].focus();
 </script>
