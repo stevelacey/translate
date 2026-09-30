@@ -36,7 +36,7 @@
 <script async src="https://analytics.ahrefs.com/analytics.js" data-key="FMjXvxGGgCWEMSLxDwpk2w"></script>
 <script async src="https://steve.ly/analytics/script.js" data-website-id="1672ff8c-1534-4c27-9794-9969738a7065"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&family=Roboto:wght@400;500&display=block" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,400,0..1,0&display=block" rel="stylesheet">
 <script>try{const t=(JSON.parse(localStorage.getItem("tr:settings"))||{}).theme;if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch{}</script>
 <style>
@@ -135,7 +135,7 @@
 
   main { flex: 1; display: flex; flex-direction: column; padding: 24px; max-width: 1400px; width: 100%; margin: 0 auto; }
   .langbar { display: flex; align-items: stretch; border-bottom: 1px solid var(--border); position: relative; }
-  .side-tabs { flex: 1; display: flex; align-items: stretch; min-width: 0; overflow: hidden; }
+  .side-tabs { flex: 1; display: flex; align-items: stretch; min-width: 0; overflow: hidden; position: relative; }
   .tab {
     border: 0; background: none; color: var(--muted); cursor: pointer;
     font: 500 14px "Google Sans", Roboto, sans-serif; padding: 0 16px; height: 48px;
@@ -143,7 +143,8 @@
   }
   .tab:hover { background: var(--hover); }
   .tab.active { color: var(--blue); }
-  .tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--blue); border-radius: 2px 2px 0 0; }
+  .ink { position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: var(--blue); border-radius: 2px 2px 0 0; pointer-events: none; }
+  .ink.animate { transition: transform .25s cubic-bezier(.4, 0, .2, 1), width .25s cubic-bezier(.4, 0, .2, 1); }
   .more {
     border: 0; background: none; color: var(--muted); cursor: pointer; width: 40px; height: 40px; align-self: center;
     border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; margin: 0 4px;
@@ -509,9 +510,24 @@ function setStatus(msg, err) {
 }
 
 // ---- UI ----
+// Each side has one indicator ("ink") that slides to the active tab; tabs are rebuilt around it.
+function positionInk(side) {
+  const box = els.tabs[side], ink = box.querySelector(".ink"), active = box.querySelector(".tab.active");
+  if (!ink) return;
+  ink.style.width = active ? active.offsetWidth + "px" : "0";
+  ink.style.transform = `translateX(${active ? active.offsetLeft : 0}px)`;
+}
 function renderTabs(side) {
   const box = els.tabs[side];
-  box.innerHTML = "";
+  let ink = box.querySelector(".ink");
+  if (!ink) {
+    ink = document.createElement("span");
+    ink.className = "ink";
+    box.appendChild(ink);
+    // Only animate once fonts have loaded, so the first alignment (and any font-driven reflow) doesn't slide.
+    (document.fonts?.ready ?? Promise.resolve()).then(() => requestAnimationFrame(() => requestAnimationFrame(() => ink.classList.add("animate"))));
+  }
+  box.querySelectorAll(".tab").forEach(t => t.remove());
   const sel = state.lang[side];
   const detectLabel = sel === AUTO && state.detected[side] && LANGS[state.detected[side]]
     ? `${LANGS[state.detected[side]]} - Detected` : "Detect language";
@@ -526,8 +542,9 @@ function renderTabs(side) {
       e.stopPropagation();               // clicking the selected language opens (or closes) the full list
       openPicker(side);
     };
-    box.appendChild(b);
+    box.insertBefore(b, ink);
   }
+  positionInk(side);
 }
 
 function fitText(t) {
@@ -538,7 +555,8 @@ function fitText(t) {
     t.classList.add(size);
   }
 }
-addEventListener("resize", () => els.text.forEach(fitText));
+addEventListener("resize", () => { els.text.forEach(fitText); positionInk(0); positionInk(1); });
+document.fonts?.ready.then(() => { positionInk(0); positionInk(1); els.text.forEach(fitText); });
 
 function refresh() {
   for (const s of [0, 1]) {
